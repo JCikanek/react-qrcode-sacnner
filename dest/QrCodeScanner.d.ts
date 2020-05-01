@@ -11,9 +11,13 @@ declare enum QrCodeScannerState {
 interface CmpState {
     state: QrCodeScannerState;
     cameras: MediaDeviceInfo[];
+    selectedCameraId?: string;
+    width?: number;
+    height?: number;
 }
 interface CmpProps {
     onQrCodeData?: (data: string) => void;
+    width?: number;
 }
 declare class QrCodeScanner extends React.Component<CmpProps, CmpState> {
     private video?;

@@ -34,18 +34,29 @@ var QrCodeScannerState;
     QrCodeScannerState[QrCodeScannerState["Closed"] = 2] = "Closed";
     QrCodeScannerState[QrCodeScannerState["Error"] = 3] = "Error";
 })(QrCodeScannerState || (QrCodeScannerState = {}));
-var width = 350;
-var height = Math.floor(width * (4 / 5));
 var QrCodeScanner = /** @class */ (function (_super) {
     __extends(QrCodeScanner, _super);
     function QrCodeScanner(props, context) {
         var _this = _super.call(this, props, context) || this;
-        _this.state = { state: QrCodeScannerState.Init, cameras: [] };
+        var width = _this.props.width;
+        var height = width && Math.floor(width * (4 / 5));
+        _this.state = {
+            state: QrCodeScannerState.Init,
+            cameras: [],
+            width: width,
+            height: height
+        };
         var readDevices = function (devices) {
             var result = devices.filter(function (it) { return it.kind === "videoinput"; });
+            console.log(result);
             _this.setState(__assign(__assign({}, _this.state), { cameras: result }));
         };
-        navigator.mediaDevices.enumerateDevices().then(readDevices.bind(_this));
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(function (arg) {
+            _this.loadCamera(arg.id);
+            navigator.mediaDevices.enumerateDevices().then(readDevices.bind(_this));
+        })
+            .catch(function (err) { return console.log(err); });
         return _this;
     }
     QrCodeScanner.prototype.closeOpenStream = function () {
@@ -60,6 +71,7 @@ var QrCodeScanner = /** @class */ (function (_super) {
         if (!id) {
             return;
         }
+        this.setState(__assign(__assign({}, this.state), { selectedCameraId: id }));
         var onCameraLoaded = function (stream) {
             var video = _this.video;
             if (!video) {
@@ -80,10 +92,12 @@ var QrCodeScanner = /** @class */ (function (_super) {
                 .catch(function (err) { return console.error(err); });
         }
     };
-    QrCodeScanner.prototype.draw = function (video, context2D, w, h) {
+    QrCodeScanner.prototype.draw = function (video, context2D) {
         var onQrCodeData = this.props.onQrCodeData;
         if (video.paused || video.ended)
             return false;
+        var w = context2D.canvas.width;
+        var h = context2D.canvas.height;
         context2D.drawImage(video, 0, 0, w, h);
         var imageData = context2D.getImageData(0, 0, w, h);
         var code = jsQR(imageData.data, imageData.width, imageData.height);
@@ -104,7 +118,7 @@ var QrCodeScanner = /** @class */ (function (_super) {
         if (!video || !context) {
             return;
         }
-        this.draw(video, context, width, height);
+        this.draw(video, context);
     };
     QrCodeScanner.prototype.initVideo = function (node) {
         if (!node) {
@@ -127,28 +141,30 @@ var QrCodeScanner = /** @class */ (function (_super) {
     };
     QrCodeScanner.prototype.renderCameraList = function () {
         var _this = this;
-        var cameras = this.state.cameras
-            .map(function (it, index) {
-            return React.createElement("option", { key: "item-" + index, value: it.deviceId }, it.label);
+        var _a = this.state, cameras = _a.cameras, selectedCameraId = _a.selectedCameraId;
+        var options = cameras.map(function (it, index) {
+            return React.createElement("option", { key: it.deviceId, value: it.deviceId }, it.label);
         });
-        return (React.createElement("select", { className: "w-100", onChange: function (e) { return _this.loadCamera(e.target.value); } },
-            React.createElement("option", null),
-            cameras));
+        return (selectedCameraId &&
+            React.createElement("select", { className: "w-100", value: selectedCameraId, onChange: function (e) { return _this.loadCamera(e.target.value); } }, options));
     };
     QrCodeScanner.prototype.render = function () {
-        var state = this.state.state;
+        var selectedCameraId = this.state.selectedCameraId;
         var cameraBoxStyle = {
-            width: width + "px",
-            height: height + "px",
             marginLeft: "auto",
             marginRight: "auto"
         };
-        var capture = (React.createElement("div", { style: cameraBoxStyle, className: "my-2" },
-            React.createElement("video", { width: width + "px", height: height + "px", hidden: true, ref: this.initVideo.bind(this) }),
-            React.createElement("canvas", { width: width + "px", height: height + "px", ref: this.initCanvas.bind(this) })));
-        return (React.createElement("div", null,
+        var capture = (React.createElement("div", null,
             this.renderCameraList(),
-            capture));
+            React.createElement("div", { style: cameraBoxStyle, className: "my-2" },
+                React.createElement("video", { hidden: true, ref: this.initVideo.bind(this) }),
+                React.createElement("canvas", { style: { width: "100%", height: "auto" }, ref: this.initCanvas.bind(this) }))));
+        var rendererCameraError = (React.createElement("div", { style: { width: "inherit", height: "100%", display: "flex" } },
+            React.createElement("svg", { viewBox: "0 0 640 512", style: { width: "128px", marginLeft: "auto", marginRight: "auto" } },
+                React.createElement("path", { fill: "currentColor", d: "M633.8 458.1l-55-42.5c15.4-1.4 29.2-13.7 29.2-31.1v-257c0-25.5-29.1-40.4-50.4-25.8L448 177.3v137.2l-32-24.7v-178c0-26.4-21.4-47.8-47.8-47.8H123.9L45.5 3.4C38.5-2 28.5-.8 23 6.2L3.4 31.4c-5.4 7-4.2 17 2.8 22.4L42.7 82 416 370.6l178.5 138c7 5.4 17 4.2 22.5-2.8l19.6-25.3c5.5-6.9 4.2-17-2.8-22.4zM32 400.2c0 26.4 21.4 47.8 47.8 47.8h288.4c11.2 0 21.4-4 29.6-10.5L32 154.7v245.5z" }))));
+        return (React.createElement(React.Fragment, null,
+            !selectedCameraId && rendererCameraError,
+            selectedCameraId && capture));
     };
     return QrCodeScanner;
 }(React.Component));
