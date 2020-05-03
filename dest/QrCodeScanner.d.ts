@@ -2,35 +2,26 @@
  * Created by jcika on 11.02.2020.
  **/
 import * as React from "react";
-declare enum QrCodeScannerState {
-    Init = 0,
-    Running = 1,
-    Closed = 2,
-    Error = 3
-}
+declare type CameraError = {
+    key: string;
+    message: string;
+};
 interface CmpState {
-    state: QrCodeScannerState;
     cameras: MediaDeviceInfo[];
     selectedCameraId?: string;
-    width?: number;
-    height?: number;
+    stream?: MediaStream;
+    error?: CameraError;
 }
 interface CmpProps {
     onQrCodeData?: (data: string) => void;
-    width?: number;
 }
 declare class QrCodeScanner extends React.Component<CmpProps, CmpState> {
-    private video?;
-    private renderingContext?;
-    private stream?;
     constructor(props: CmpProps, context: any);
-    private closeOpenStream;
-    private loadCamera;
-    private draw;
-    private handleStreamEvent;
-    private initVideo;
-    private initCanvas;
+    componentDidMount(): void;
+    private setError;
     componentWillUnmount(): void;
+    closeActualStream(mediaStream: MediaStream): void;
+    private openStreamByCameraId;
     private renderCameraList;
     render(): JSX.Element;
 }
