@@ -18,96 +18,90 @@ interface CmpProps {
 class VideoElement extends React.Component<CmpProps, CmpState> {
     private video?: HTMLVideoElement;
     private renderingContext?: CanvasRenderingContext2D;
+    private timeout?: number;
 
 
     constructor(props: CmpProps, context: any) {
         super(props, context);
 
         this.state = {}
-        this.handleStreamEvent = this.handleStreamEvent.bind(this);
+        this.draw = this.draw.bind(this);
     }
 
 
     componentDidMount() {
         const {mediaStream} = this.props;
 
-
         const {video} = this;
         if (!video) {
             return;
         }
-        console.log("Open camera stream", mediaStream)
         video.srcObject = mediaStream;
-        video.addEventListener('play', this.handleStreamEvent, false);
-
+        // video.addEventListener('play', this.draw, false);
 
         video.play()
             .then(() => {
                 console.log("Open success");
+                this.timeout = setInterval(this.draw, 150);
             })
             .catch(err => console.log(err));
-
     }
 
     componentWillUnmount(): void {
+        this.timeout && clearTimeout(this.timeout);
         this.closeOpenStream();
     }
 
     private closeOpenStream() {
-        // const {mediaStream} = this.props;
         const {video} = this;
         if (video) {
             console.log("Closing stream");
-            video.removeEventListener('play', this.handleStreamEvent);
+            // video.removeEventListener('play', this.draw);
             video.srcObject = null;
         }
-        console.log("Closing camera");
-
-        // if (mediaStream) {
-        //     // stream.active = false
-        //     console.log("Closing stream");
-        //     mediaStream.getTracks().forEach(it => {
-        //         console.log("Close track", it);
-        //         it.stop()
-        //     });
-        // }
-
     }
 
-    private handleStreamEvent() {
+    private setError(key: string, message: string) {
+        this.setState({error: message});
+    }
+
+    private draw() {
         const {video, renderingContext} = this;
         if (!video || !renderingContext) {
             return;
         }
-        this.draw(video, renderingContext);
-    }
 
-    private setError(key: string, message: string) {
-        console.log(message)
-        this.setState({error: message});
-
-        // this.closeOpenStream();
-        // this.setState({cameras: this.state.cameras, error: {key, message}})
-    }
-
-    private draw(video: HTMLVideoElement, context2D: CanvasRenderingContext2D) {
         const {onQrCodeData} = this.props;
 
-        if (video.paused || video.ended) return false;
+        if (video.paused || video.ended) {
+            return false;
+        }
 
-        const w = context2D.canvas.width;
-        const h = context2D.canvas.height;
+        // console.log("W: "+, "H: "+ );
 
-        context2D.drawImage(video, 0, 0, w, h);
 
-        const imageData = context2D.getImageData(0, 0, w, h);
+        const videoWidth = video.videoWidth;
+        const videoHeight= video.videoHeight;
+        if (!videoWidth || !videoHeight) {
+            return;
+        }
+
+        const ratio = videoHeight/videoWidth;
+
+        const width = renderingContext.canvas.width
+        const hRatio = width * ratio;
+
+
+
+        renderingContext.drawImage(video, 0, 0, width, hRatio);
+
+        const imageData = renderingContext.getImageData(0, 0, width, hRatio);
         const code = jsQR(imageData.data, imageData.width, imageData.height);
 
-        const timeout = setTimeout(this.draw.bind(this), 150, video, context2D, w, h);
 
         if (code) {
             this.closeOpenStream();
-            clearTimeout(timeout);
+
             if (onQrCodeData) {
                 onQrCodeData(code.data);
             }
@@ -141,10 +135,6 @@ class VideoElement extends React.Component<CmpProps, CmpState> {
                 </div>
             )
         }
-
-        // const rendererCameraSuccess = (cameraId?: string) => {
-        //     return cameraId ? capture() : rendererCameraNotAllowed()
-        // }
 
         return (
             <div className="my-2">
