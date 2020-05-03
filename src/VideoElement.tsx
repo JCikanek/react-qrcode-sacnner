@@ -77,9 +77,6 @@ class VideoElement extends React.Component<CmpProps, CmpState> {
             return false;
         }
 
-        // console.log("W: "+, "H: "+ );
-
-
         const videoWidth = video.videoWidth;
         const videoHeight= video.videoHeight;
         if (!videoWidth || !videoHeight) {
@@ -91,13 +88,10 @@ class VideoElement extends React.Component<CmpProps, CmpState> {
         const width = renderingContext.canvas.width
         const hRatio = width * ratio;
 
-
-
         renderingContext.drawImage(video, 0, 0, width, hRatio);
 
         const imageData = renderingContext.getImageData(0, 0, width, hRatio);
         const code = jsQR(imageData.data, imageData.width, imageData.height);
-
 
         if (code) {
             this.closeOpenStream();
